@@ -49,10 +49,10 @@ export class ContextMenu {
       fromEvent(this.elementRef, 'contextmenu').subscribe(ev => {
         ev.preventDefault()
       }),
-      fromEvent(editorDocument, 'mousedown').subscribe(() => {
+      fromEvent(container, 'mousedown').subscribe(() => {
         this.hide()
       }),
-      fromEvent<MouseEvent>(editorDocument, 'contextmenu').subscribe((ev) => {
+      fromEvent<MouseEvent>(container, 'contextmenu').subscribe((ev) => {
         const nativeSelection = editorDocument.getSelection()!
         const focusNode = nativeSelection.focusNode
         const offset = nativeSelection.focusOffset

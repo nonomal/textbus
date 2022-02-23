@@ -1,4 +1,4 @@
-import { fromEvent, Observable, Subject, Subscription, tap } from '@tanbo/stream'
+import { BehaviorSubject, fromEvent, Observable, Subject, Subscription } from '@tanbo/stream'
 import { Inject, Injectable } from '@tanbo/di'
 import {
   ComponentInstance,
@@ -12,9 +12,10 @@ import {
   VTextNode
 } from '@textbus/core'
 
-import { Caret, getLayoutRectByRange } from './caret'
-import { EDITABLE_DOCUMENT, EDITOR_CONTAINER } from './injection-tokens'
-import { createElement } from '../_utils/uikit'
+import { Caret, getLayoutRectByRange } from './_caret'
+import { EDITABLE_DOCUMENT, EDITOR_MASK, RESIZE_OBSERVER } from '../injection-tokens'
+import { createElement } from '../../_utils/uikit'
+import { SelectionMask } from './_selection-mask'
 
 /**
  * TextBus PC 端选区桥接实现
@@ -24,7 +25,8 @@ export class SelectionBridge implements NativeSelectionBridge {
   onSelectionChange: Observable<Range | null>
   nativeSelection = this.document.getSelection()!
 
-  caret = new Caret(this.document, this.container)
+  caret = new Caret(this.subject, this.document, this.maskContainer)
+  mask = new SelectionMask(this.subject, this.document, this.maskContainer)
 
   private hideMaskStyleElement = createElement('style', {
     props: {
@@ -37,16 +39,23 @@ export class SelectionBridge implements NativeSelectionBridge {
   private subs: Subscription[] = []
   private connector!: NativeSelectionConnector
 
-  constructor(@Inject(EDITABLE_DOCUMENT) private document: Document,
-              @Inject(EDITOR_CONTAINER) private container: HTMLElement,
+  constructor(@Inject(RESIZE_OBSERVER) private subject: BehaviorSubject<DOMRect>,
+              @Inject(EDITABLE_DOCUMENT) private document: Document,
+              @Inject(EDITOR_MASK) private maskContainer: HTMLElement,
               private renderer: Renderer) {
-    this.onSelectionChange = this.selectionChangeEvent.asObservable().pipe(tap((r) => {
-      if (r?.collapsed) {
-        this.caret.show(r)
-      } else {
-        this.caret.hide()
-      }
-    }))
+    this.onSelectionChange = this.selectionChangeEvent.asObservable()
+    this.subs.push(
+      this.onSelectionChange.subscribe((r) => {
+        if (r?.collapsed) {
+          this.caret.show(r)
+        } else {
+          this.caret.hide()
+        }
+        if (r) {
+          this.mask.draw(r)
+        }
+      })
+    )
   }
 
   showNativeMask() {

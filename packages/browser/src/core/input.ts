@@ -3,7 +3,7 @@ import { Injectable } from '@tanbo/di'
 import { Commander, ContentType, Keyboard, Slot, Selection } from '@textbus/core'
 
 import { createElement } from '../_utils/uikit'
-import { SelectionBridge } from './selection-bridge'
+import { SelectionBridge } from './selection/_api'
 import { Parser } from '../dom-support/parser'
 
 export const isWindows = /win(dows|32|64)/i.test(navigator.userAgent)
@@ -51,13 +51,13 @@ export class Input {
     this.container.appendChild(textarea)
     selectionBridge.caret.elementRef.append(this.container)
     this.subscriptions.push(
-      selectionBridge.onSelectionChange.subscribe((range) => {
-        if (range) {
-          this.textarea.focus()
-        } else {
-          this.textarea.blur()
-        }
-      }),
+      // selectionBridge.onSelectionChange.subscribe((range) => {
+      //   if (range) {
+      //     this.textarea.focus()
+      //   } else {
+      //     this.textarea.blur()
+      //   }
+      // }),
       fromEvent(textarea, 'blur').subscribe(() => {
         selectionBridge.caret.hide()
       })
