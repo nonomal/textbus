@@ -1,4 +1,4 @@
-import { fromEvent, Observable, Subject, Subscription, tap } from '@tanbo/stream'
+import { BehaviorSubject, fromEvent, Observable, Subject, Subscription } from '@tanbo/stream'
 import { Inject, Injectable } from '@tanbo/di'
 import {
   ComponentInstance,
@@ -13,7 +13,7 @@ import {
 } from '@textbus/core'
 
 import { Caret, getLayoutRectByRange } from './caret'
-import { EDITABLE_DOCUMENT, EDITOR_CONTAINER } from './injection-tokens'
+import { EDITABLE_DOCUMENT, EDITOR_MASK, RESIZE_OBSERVER } from './injection-tokens'
 import { createElement } from '../_utils/uikit'
 
 /**
@@ -24,7 +24,7 @@ export class SelectionBridge implements NativeSelectionBridge {
   onSelectionChange: Observable<Range | null>
   nativeSelection = this.document.getSelection()!
 
-  caret = new Caret(this.document, this.container)
+  caret = new Caret(this.subject, this.document, this.maskContainer)
 
   private hideMaskStyleElement = createElement('style', {
     props: {
@@ -37,16 +37,20 @@ export class SelectionBridge implements NativeSelectionBridge {
   private subs: Subscription[] = []
   private connector!: NativeSelectionConnector
 
-  constructor(@Inject(EDITABLE_DOCUMENT) private document: Document,
-              @Inject(EDITOR_CONTAINER) private container: HTMLElement,
+  constructor(@Inject(RESIZE_OBSERVER) private subject: BehaviorSubject<DOMRect>,
+              @Inject(EDITABLE_DOCUMENT) private document: Document,
+              @Inject(EDITOR_MASK) private maskContainer: HTMLElement,
               private renderer: Renderer) {
-    this.onSelectionChange = this.selectionChangeEvent.asObservable().pipe(tap((r) => {
-      if (r?.collapsed) {
-        this.caret.show(r)
-      } else {
-        this.caret.hide()
-      }
-    }))
+    this.onSelectionChange = this.selectionChangeEvent.asObservable()
+    this.subs.push(
+      this.onSelectionChange.subscribe((r) => {
+        if (r?.collapsed) {
+          this.caret.show(r)
+        } else {
+          this.caret.hide()
+        }
+      })
+    )
   }
 
   showNativeMask() {
@@ -81,11 +85,11 @@ export class SelectionBridge implements NativeSelectionBridge {
   }
 
   restore(range: TBRange | null) {
-    this.unListen()
+    // this.unListen()
     if (!range) {
       this.nativeSelection.removeAllRanges()
       this.selectionChangeEvent.next(null)
-      this.listen(this.connector)
+      // this.listen(this.connector)
       return
     }
 
@@ -93,7 +97,7 @@ export class SelectionBridge implements NativeSelectionBridge {
     if (!position.start || !position.end) {
       this.nativeSelection.removeAllRanges()
       this.selectionChangeEvent.next(null)
-      this.listen(this.connector)
+      // this.listen(this.connector)
       return
     }
 
@@ -111,8 +115,8 @@ export class SelectionBridge implements NativeSelectionBridge {
       nativeRange.setEnd(position.start!.node, position.start!.offset)
       nativeRange.setStart(position.end!.node, position.end!.offset)
     }
-    this.selectionChangeEvent.next(nativeRange)
-    this.listen(this.connector)
+    // this.selectionChangeEvent.next(nativeRange)
+    // this.listen(this.connector)
   }
 
   destroy() {
